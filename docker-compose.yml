@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "1234:1234"
+    environment:
+      - HOST=0.0.0.0        
+      - PORT=1234
+      - MONGO_DB_KEY=${MONGO_DB_KEY}  
+    restart: unless-stopped

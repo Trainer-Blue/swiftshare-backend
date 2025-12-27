@@ -46,7 +46,8 @@ export const persistence = {
       if (storedDoc && storedDoc.state) {
         try {
           // Apply stored state to the Yjs document
-          const state = Buffer.from(storedDoc.state);
+          // MongoDB stores as Binary/BSON, convert to Uint8Array for Yjs
+          const state = new Uint8Array(storedDoc.state.buffer);
           Y.applyUpdate(ydoc, state);
           console.log(`📥 Loaded document "${docName}" from MongoDB`);
         } catch (applyError) {

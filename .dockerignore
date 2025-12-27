@@ -1,0 +1,15 @@
+# Don't copy node_modules (we'll install fresh in container)
+node_modules
+
+# Don't copy npm logs
+npm-debug.log
+
+# Don't copy .env file (we'll pass it differently for security)
+.env
+
+# Don't copy git files
+.git
+.gitignore
+
+# Don't copy README files
+README.md
