@@ -1,6 +1,6 @@
-# Gaiapad Backend
+# SwiftShare.in Backend
 
-The backend service for Gaiapad, a real-time collaborative text editor. It powers the synchronization engine using WebSockets and CRDTs (Conflict-free Replicated Data Types).
+The backend service for SwiftShare.in, a real-time collaborative text editor. It powers the synchronization engine using WebSockets and CRDTs (Conflict-free Replicated Data Types).
 
 ## 🛠️ Tech Stack
 
@@ -34,7 +34,7 @@ Create a `.env` file in the root of the `backend` directory:
 
 ```env
 PORT=1234
-MONGO_DB_KEY=mongodb://localhost:27017/gaiapad # Or your Atlas connection string
+MONGO_DB_KEY=mongodb://localhost:27017/swiftshare # Or your Atlas connection string
 ```
 
 ### Running the Server
