@@ -23,7 +23,7 @@ export const getPersistence = () => persistence;
 
 export const docs = new Map();
 
-// Track pending file deletion timeouts
+// Track pending file deletion timeouts: Map<docname, { timeout, fileKeys }>
 const pendingDeletions = new Map();
 
 const messageSync = 0;
@@ -82,26 +82,32 @@ export class WSSharedDoc extends Y.Doc {
   }
 }
 
-export const getYDoc = (docname, gc = true) =>
-  map.setIfUndefined(docs, docname, () => {
-    const doc = new WSSharedDoc(docname);
-    doc.gc = gc;
-
+export const getYDoc = (docname, gc = true) => {
+  // Check if doc already exists (might be pending deletion)
+  const existingDoc = docs.get(docname);
+  if (existingDoc) {
     // Cancel pending deletion if someone rejoins
     if (pendingDeletions.has(docname)) {
-      clearTimeout(pendingDeletions.get(docname));
+      const pending = pendingDeletions.get(docname);
+      clearTimeout(pending.timeout);
       pendingDeletions.delete(docname);
       console.log(
-        `⏸️  Cancelled file deletion for room: ${docname} (user rejoined)`,
+        `⏸️  Cancelled file deletion for room: ${docname} (user rejoined) - ${pending.fileKeys.length} files preserved`,
       );
     }
+    return existingDoc;
+  }
 
-    if (persistence !== null) {
-      persistence.bindState(docname, doc);
-    }
-    docs.set(docname, doc);
-    return doc;
-  });
+  // Create new doc if it doesn't exist
+  const doc = new WSSharedDoc(docname);
+  doc.gc = gc;
+
+  if (persistence !== null) {
+    persistence.bindState(docname, doc);
+  }
+  docs.set(docname, doc);
+  return doc;
+};
 
 const messageListener = (conn, doc, message) => {
   try {
@@ -141,48 +147,64 @@ const closeConn = async (doc, conn) => {
       Array.from(controlledIds),
       null,
     );
+
+    // When room becomes empty, schedule cleanup but keep doc alive
     if (doc.conns.size === 0 && persistence !== null) {
-      // Get file list from Y.Array before clearing
+      // Get file list from Y.Array (but DON'T clear it yet!)
       const yfiles = doc.getArray("files");
       const fileList = yfiles.toArray();
-
-      // Clear the files array before saving
-      yfiles.delete(0, yfiles.length);
-
-      // Save document immediately
-      await persistence.writeState(doc.name, doc);
+      const fileKeys = fileList.map((f) => f.key).filter(Boolean);
 
       // Schedule file deletion for 15 minutes later
-      if (fileList.length > 0) {
+      if (fileKeys.length > 0) {
         console.log(
-          `⏰ Scheduling deletion of ${fileList.length} files for room: ${doc.name} in 60 minutes`,
+          `⏰ Scheduling deletion of ${fileKeys.length} files for room: ${doc.name} in 15 minutes`,
         );
 
         const deletionTimeout = setTimeout(
           async () => {
             try {
-              const utapi = new UTApi();
-              const fileKeys = fileList.map((f) => f.key).filter(Boolean);
-              if (fileKeys.length > 0) {
-                await utapi.deleteFiles(fileKeys);
-                console.log(
-                  `🗑️  Deleted ${fileKeys.length} files from UploadThing for room: ${doc.name}`,
-                );
+              // Double-check the doc is still pending deletion (wasn't cancelled)
+              if (!pendingDeletions.has(doc.name)) {
+                return;
               }
+
+              const utapi = new UTApi();
+              await utapi.deleteFiles(fileKeys);
+              console.log(
+                `🗑️  Deleted ${fileKeys.length} files from UploadThing for room: ${doc.name}`,
+              );
+
+              // NOW clear the files array and save
+              const currentYfiles = doc.getArray("files");
+              currentYfiles.delete(0, currentYfiles.length);
+              await persistence.writeState(doc.name, doc);
+
+              // Clean up the document
               pendingDeletions.delete(doc.name);
+              doc.destroy();
+              docs.delete(doc.name);
+              console.log(`🧹 Room ${doc.name} cleaned up after timeout`);
             } catch (error) {
               console.error("Failed to delete files from UploadThing:", error);
+              // Still clean up even on error
               pendingDeletions.delete(doc.name);
+              doc.destroy();
+              docs.delete(doc.name);
             }
           },
-           60 * 60 * 1000,
-        ); // 60 minutes
+          15 * 60 * 1000, // 15 minutes
+        );
 
-        pendingDeletions.set(doc.name, deletionTimeout);
+        // Store both the timeout and file keys
+        pendingDeletions.set(doc.name, { timeout: deletionTimeout, fileKeys });
+      } else {
+        // No files to delete, clean up immediately
+        await persistence.writeState(doc.name, doc);
+        doc.destroy();
+        docs.delete(doc.name);
+        console.log(`🧹 Room ${doc.name} cleaned up (no files to delete)`);
       }
-
-      doc.destroy();
-      docs.delete(doc.name);
     }
   }
   conn.close();
