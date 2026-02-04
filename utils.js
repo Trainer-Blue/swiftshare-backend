@@ -264,11 +264,12 @@ export const setupWSConnection = (
   }, pingTimeout);
 
   conn.on("close", () => {
-    const remainingUsers = doc.conns.size - 1;
-    console.log(
-      `❌ User left room: "${docName}" (${remainingUsers} users remaining)`,
-    );
-    closeConn(doc, conn);
+    if (doc.conns.has(conn)) {
+      closeConn(doc, conn);
+      console.log(
+        `❌ User left room: "${docName}" (${doc.conns.size} users remaining)`,
+      );
+    }
     clearInterval(pingInterval);
   });
 
