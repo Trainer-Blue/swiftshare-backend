@@ -12,32 +12,32 @@ export const uploadRouter = {
     // Allow all file types with attachment content-disposition to force download
     image: {
       maxFileSize: "100MB",
-      maxFileCount: 10,
+      maxFileCount: 50,
       contentDisposition: "attachment",
     },
     video: {
       maxFileSize: "100MB",
-      maxFileCount: 10,
+      maxFileCount: 50,
       contentDisposition: "attachment",
     },
     audio: {
       maxFileSize: "100MB",
-      maxFileCount: 10,
+      maxFileCount: 50,
       contentDisposition: "attachment",
     },
     pdf: {
       maxFileSize: "100MB",
-      maxFileCount: 10,
+      maxFileCount: 50,
       contentDisposition: "attachment",
     },
     text: {
       maxFileSize: "100MB",
-      maxFileCount: 10,
+      maxFileCount: 50,
       contentDisposition: "attachment",
     },
     blob: {
       maxFileSize: "100MB",
-      maxFileCount: 10,
+      maxFileCount: 50,
       contentDisposition: "attachment",
     },
   })
